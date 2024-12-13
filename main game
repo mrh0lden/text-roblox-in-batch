@@ -1,0 +1,344 @@
+@echo off
+title Text Roblox
+color 0a
+
+:: Variables
+setlocal enabledelayedexpansion
+set accountFile=accounts.txt
+set friendsFile=friends.txt
+set chatFile=chat_logs.txt
+set gamesFile=custom_games.txt
+set currentUser=
+set characterName=
+set characterAppearance=
+
+:: Main Menu
+:main_menu
+cls
+echo =============================
+echo         Welcome to Text Roblox
+echo =============================
+echo 1. Login
+echo 2. Create Account
+echo 3. Exit
+echo =============================
+set /p choice=Enter your choice (1-3): 
+
+if "%choice%"=="1" goto login
+if "%choice%"=="2" goto create_account
+if "%choice%"=="3" exit
+goto main_menu
+
+:: Create Account
+:create_account
+cls
+echo === Create Account ===
+set /p username=Enter a username: 
+
+:: Check if username already exists
+set usernameExists=false
+for /f "tokens=1,2 delims=:" %%A in (%accountFile%) do (
+    if /i "%%A"=="%username%" set usernameExists=true
+)
+
+if "%usernameExists%"=="true" (
+    echo Username already exists. Please choose a different username.
+    pause
+    goto create_account
+)
+
+set /p password=Enter a password: 
+
+:: Save to account file
+echo %username%:%password%>>%accountFile%
+echo Account created successfully!
+pause
+goto main_menu
+
+:: Login
+:login
+cls
+echo === Login ===
+set /p username=Enter your username: 
+set /p password=Enter your password: 
+
+:: Verify login
+set userFound=false
+for /f "tokens=1,2 delims=:" %%A in (%accountFile%) do (
+    if "%%A"=="%username%" if "%%B"=="%password%" (
+        set currentUser=%username%
+        set userFound=true
+    )
+)
+
+if "%userFound%"=="false" (
+    echo Invalid username or password!
+    pause
+    goto main_menu
+)
+
+echo Welcome, %currentUser%!
+pause
+goto user_menu
+
+:: User Menu
+:user_menu
+cls
+echo =============================
+echo          User Menu
+echo =============================
+echo 1. Character Customization
+echo 2. Game Menu
+echo 3. Friend System
+echo 4. Chat System
+echo 5. Logout
+echo =============================
+set /p choice=Enter your choice (1-5): 
+
+if "%choice%"=="1" goto character_menu
+if "%choice%"=="2" goto game_menu
+if "%choice%"=="3" goto friend_menu
+if "%choice%"=="4" goto chat_menu
+if "%choice%"=="5" goto main_menu
+goto user_menu
+
+:: Character Customization
+:character_menu
+cls
+echo === Character Customization ===
+set /p characterName=Enter your character's name: 
+set /p characterAppearance=Choose appearance (e.g., Hat, Shirt): 
+
+echo Character saved! Name: %characterName%, Appearance: %characterAppearance%
+pause
+goto user_menu
+
+:: Friend System
+:friend_menu
+cls
+echo === Friend System ===
+echo 1. View Friends
+echo 2. Add Friend
+echo 3. Remove Friend
+echo 4. Search for Users
+echo 5. Back to User Menu
+set /p friendChoice=Enter your choice (1-5): 
+
+if "%friendChoice%"=="1" goto view_friends
+if "%friendChoice%"=="2" goto add_friend
+if "%friendChoice%"=="3" goto remove_friend
+if "%friendChoice%"=="4" goto search_users
+if "%friendChoice%"=="5" goto user_menu
+goto friend_menu
+
+:view_friends
+cls
+echo === Your Friends ===
+for /f "tokens=1,2 delims=:" %%A in (%friendsFile%) do (
+    if "%%A"=="%currentUser%" echo - %%B
+)
+pause
+goto friend_menu
+
+:add_friend
+cls
+echo === Add Friend ===
+set /p friendUsername=Enter the username of the person you want to add: 
+
+:: Check if friend exists and is not already added
+set userExists=false
+set alreadyFriends=false
+for /f "tokens=1,2 delims=:" %%A in (%accountFile%) do (
+    if "%%A"=="%friendUsername%" set userExists=true
+)
+for /f "tokens=1,2 delims=:" %%A in (%friendsFile%) do (
+    if "%%A"=="%currentUser%" if "%%B"=="%friendUsername%" set alreadyFriends=true
+)
+
+if "%userExists%"=="false" (
+    echo User does not exist!
+    pause
+    goto friend_menu
+)
+if "%alreadyFriends%"=="true" (
+    echo You are already friends with %friendUsername%!
+    pause
+    goto friend_menu
+)
+
+echo %currentUser%:%friendUsername%>>%friendsFile%
+echo %friendUsername%:%currentUser%>>%friendsFile%
+echo Friend added successfully!
+pause
+goto friend_menu
+
+:remove_friend
+cls
+echo === Remove Friend ===
+set /p removeUsername=Enter the username of the friend to remove: 
+
+:: Remove friend from file
+set tempFile=temp_friends.txt
+if exist %tempFile% del %tempFile%
+for /f "tokens=1,2 delims=:" %%A in (%friendsFile%) do (
+    if not ("%%A"=="%currentUser%" and "%%B"=="%removeUsername%") if not ("%%A"=="%removeUsername%" and "%%B"=="%currentUser%") echo %%A:%%B>>%tempFile%
+)
+move /y %tempFile% %friendsFile% >nul
+echo Friend removed successfully!
+pause
+goto friend_menu
+
+:search_users
+cls
+echo === Search for Users ===
+set /p searchQuery=Enter part of the username to search for: 
+
+:: Search for users
+set userFound=false
+for /f "tokens=1,2 delims=:" %%A in (%accountFile%) do (
+    echo %%A | findstr /i "%searchQuery%" >nul
+    if !errorlevel! == 0 (
+        echo - %%A
+        set userFound=true
+    )
+)
+
+if "%userFound%"=="false" echo No users found matching "%searchQuery%".
+pause
+goto friend_menu
+
+:: Chat System
+:chat_menu
+cls
+echo === Chat System ===
+echo 1. View Chat Logs
+echo 2. Send a Message
+echo 3. Back to User Menu
+set /p chatChoice=Enter your choice (1-3): 
+
+if "%chatChoice%"=="1" goto view_chat
+if "%chatChoice%"=="2" goto send_message
+if "%chatChoice%"=="3" goto user_menu
+goto chat_menu
+
+:view_chat
+cls
+echo === Chat Logs ===
+for /f "tokens=1,2,3 delims=:" %%A in (%chatFile%) do (
+    if "%%A"=="%currentUser%" echo To %%B: %%C
+    if "%%B"=="%currentUser%" echo From %%A: %%C
+)
+pause
+goto chat_menu
+
+:send_message
+cls
+echo === Send a Message ===
+set /p recipient=Enter the username of the recipient: 
+set /p message=Enter your message: 
+
+echo %currentUser%:%recipient%:%message%>>%chatFile%
+echo Message sent successfully!
+pause
+goto chat_menu
+
+:: Game Menu
+:game_menu
+cls
+echo === Game Menu ===
+echo 1. Game 1: Obstacle Course
+echo 2. Game 2: Treasure Hunt
+echo 3. Game 3: Trivia Quiz
+echo 4. Game 4: Survival Challenge
+echo 5. Game 5: Maze Explorer
+echo 6. Game 6: Memory Match
+echo 7. Roblox Studio
+echo 8. Play Custom Games
+echo 9. Multiplayer Lobby
+echo 10. Back to User Menu
+echo =============================
+set /p choice=Choose a game (1-10): 
+
+if "%choice%"=="1" goto game1
+if "%choice%"=="2" goto game2
+if "%choice%"=="3" goto game3
+if "%choice%"=="4" goto game4
+if "%choice%"=="5" goto game5
+if "%choice%"=="6" goto game6
+if "%choice%"=="7" goto studio
+if "%choice%"=="8" goto play_custom_games
+if "%choice%"=="9" goto multiplayer_menu
+if "%choice%"=="10" goto user_menu
+goto game_menu
+
+:: Game Implementations
+:game1
+cls
+echo === Game 1: Obstacle Course ===
+echo Navigate the course to win!
+pause
+goto game_menu
+
+:game2
+cls
+echo === Game 2: Treasure Hunt ===
+echo Find the hidden treasure!
+pause
+goto game_menu
+
+:game3
+cls
+echo === Game 3: Trivia Quiz ===
+echo Answer the questions correctly to win!
+pause
+goto game_menu
+
+:game4
+cls
+echo === Game 4: Survival Challenge ===
+echo Survive as long as you can!
+pause
+goto game_menu
+
+:game5
+cls
+echo === Game 5: Maze Explorer ===
+echo Solve the maze to escape!
+pause
+goto game_menu
+
+:game6
+cls
+echo === Game 6: Memory Match ===
+echo Match the pairs to win!
+pause
+goto game_menu
+
+:studio
+cls
+echo === Roblox Studio ===
+echo Create your own custom game!
+set /p gameName=Enter your game name: 
+set /p gameDescription=Enter a short description: 
+echo %gameName%:%gameDescription%>>%gamesFile%
+echo Game saved successfully!
+pause
+goto game_menu
+
+:play_custom_games
+cls
+echo === Custom Games ===
+for /f "tokens=1,2 delims=:" %%A in (%gamesFile%) do (
+    echo Game: %%A - %%B
+)
+pause
+goto game_menu
+
+:multiplayer_menu
+cls
+echo === Multiplayer Lobby ===
+echo Multiplayer games are under development.
+pause
+goto game_menu
+
+:: Add other game implementations here...
